@@ -3455,7 +3455,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return response;
     }
 
-    private Object
+    protected Object
     responseFailCause(Parcel p) {
         LastCallFailCause failCause = new LastCallFailCause();
         failCause.causeCode = p.readInt();
