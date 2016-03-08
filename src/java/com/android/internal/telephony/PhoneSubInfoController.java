@@ -38,6 +38,7 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
         mPhone = phone;
     private final Context mContext;
     private final AppOpsManager mAppOps;
+    }
 
     public PhoneSubInfoController(Phone[] phones) {
         mPhone = phones;
