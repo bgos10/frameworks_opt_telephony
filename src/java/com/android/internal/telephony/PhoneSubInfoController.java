@@ -33,13 +33,9 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
     private static final String TAG = "PhoneSubInfoController";
     private Phone[] mPhone;
     private static final int PHONE_ID_1 = 0;
-
-    public PhoneSubInfoController(Phone[] phone) {
-        mPhone = phone;
     private final Context mContext;
     private final AppOpsManager mAppOps;
-    }
-
+   
     public PhoneSubInfoController(Phone[] phones) {
         mPhone = phones;
         Context context = null;
