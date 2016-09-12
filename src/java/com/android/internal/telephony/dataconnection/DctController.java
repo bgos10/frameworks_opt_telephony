@@ -32,7 +32,6 @@ import android.os.Message;
 import android.os.Messenger;
 import android.provider.Settings;
 import android.telephony.Rlog;
-import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.SubscriptionManager.OnSubscriptionsChangedListener;
 import android.text.TextUtils;
@@ -45,6 +44,9 @@ import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.PhoneProxy;
 import com.android.internal.telephony.SubscriptionController;
 import com.android.internal.telephony.dataconnection.DcSwitchAsyncChannel.RequestInfo;
+import com.android.internal.telephony.uicc.IccCardStatus;
+import com.android.internal.telephony.uicc.UiccCard;
+import com.android.internal.telephony.uicc.UiccController;
 import com.android.internal.util.AsyncChannel;
 import com.android.internal.util.IndentingPrintWriter;
 
@@ -92,6 +94,9 @@ public class DctController extends Handler {
     protected SubscriptionController mSubController = SubscriptionController.getInstance();
 
     private SubscriptionManager mSubMgr;
+
+    protected AtomicBoolean[] mIsDataAllowed;
+    protected AtomicBoolean mNeedsDdsSwitch = new AtomicBoolean(false);
 
     protected AtomicBoolean[] mIsDataAllowed;
     protected AtomicBoolean mNeedsDdsSwitch = new AtomicBoolean(false);
@@ -404,7 +409,12 @@ public class DctController extends Handler {
                 + ", activePhoneId=" + activePhoneId);
 
         if (requestedPhoneId == INVALID_PHONE_INDEX) {
-            // we have no network request - don't bother with this
+            // either we have no network request
+            // or there is no valid subscription at the moment
+            if (activePhoneId != INVALID_PHONE_INDEX) {
+                // detatch so we can try connecting later
+                mDcSwitchAsyncChannel[activePhoneId].disconnectAll();
+            }
             return;
         }
 
@@ -553,23 +563,12 @@ public class DctController extends Handler {
         int priority = -1;
         int subId;
 
-        int activePhoneId = -1;
-        for (int i = 0; i < mDcSwitchStateMachine.length; i++) {
-            if (!mDcSwitchAsyncChannel[i].isIdleSync()) {
-                activePhoneId = i;
-                break;
-            }
-        }
-
         for (RequestInfo requestInfo : mRequestInfos.values()) {
             logd("getTopPriorityRequestPhoneId requestInfo=" + requestInfo);
             if (requestInfo.priority > priority) {
                 priority = requestInfo.priority;
                 topSubId = requestInfo.request.networkCapabilities.getNetworkSpecifier();
-            } else if (priority == requestInfo.priority) {
-                if (requestInfo.executedPhoneId == activePhoneId) {
-                    topSubId = requestInfo.request.networkCapabilities.getNetworkSpecifier();
-                }
+				retRequestInfo = requestInfo;
             }
         }
         if (TextUtils.isEmpty(topSubId)) {
@@ -596,12 +595,13 @@ public class DctController extends Handler {
 
     protected void onSubInfoReady() {
         logd("onSubInfoReady mPhoneNum=" + mPhoneNum);
+        UiccController uiccController = UiccController.getInstance();
         for (int i = 0; i < mPhoneNum; ++i) {
             int subId = mPhones[i].getSubId();
             logd("onSubInfoReady handle pending requests subId=" + subId);
-            SubscriptionInfo subInfo = mSubMgr.getActiveSubscriptionInfoForSimSlotIndex(i);
-            if (subInfo == null) {  // No sim in slot
-                logd("onSubInfoReady: subInfo = null");
+            if ((card == null) || (card.getCardState() ==
+                    IccCardStatus.CardState.CARDSTATE_ABSENT)) {
+                logd("onSubInfoReady: SIM card absent on phoneId = " + i);
                 PhoneBase phoneBase = (PhoneBase)mPhones[i].getActivePhone();
                 DcTrackerBase dcTracker = phoneBase.mDcTracker;
                 if (dcTracker.isApnTypeActive(PhoneConstants.APN_TYPE_DEFAULT)) {
@@ -867,6 +867,25 @@ public class DctController extends Handler {
             pw.decreaseIndent();
             pw.decreaseIndent();
         }
+    }
+
+    protected void setDataAllowedOnPhoneId(int phoneId, boolean dataAllowed) {
+        if (SubscriptionManager.isValidPhoneId(phoneId)) {
+            mIsDataAllowed[phoneId].set(dataAllowed);
+        }
+    }
+
+    public boolean isDataAllowedOnPhoneId(int phoneId) {
+        return SubscriptionManager.isValidPhoneId(phoneId) &&
+                mIsDataAllowed[phoneId].get();
+    }
+
+    public boolean isDdsSwitchNeeded() {
+        return mNeedsDdsSwitch.get();
+    }
+
+    public void resetDdsSwitchNeededFlag() {
+        mNeedsDdsSwitch.set(false);
     }
 
     protected void setDataAllowedOnPhoneId(int phoneId, boolean dataAllowed) {
