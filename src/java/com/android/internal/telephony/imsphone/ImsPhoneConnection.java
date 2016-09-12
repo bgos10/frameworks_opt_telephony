@@ -913,8 +913,7 @@ public class ImsPhoneConnection extends Connection {
             // integer extra, so we need to parse it.
             int radioTechnology;
             try {
-                radioTechnology = Integer.parseInt(extras.getString(
-                        ImsCallProfile.EXTRA_CALL_RAT_TYPE));
+                radioTechnology = Integer.parseInt(extras.getString(ImsCallProfile.EXTRA_CALL_RAT_TYPE));
             } catch (NumberFormatException nfe) {
                 radioTechnology = ServiceState.RIL_RADIO_TECHNOLOGY_UNKNOWN;
             }

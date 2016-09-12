@@ -16,6 +16,7 @@
 
 package com.android.internal.telephony.dataconnection;
 
+
 import static android.telephony.SubscriptionManager.DEFAULT_PHONE_INDEX;
 import static android.telephony.SubscriptionManager.INVALID_PHONE_INDEX;
 
@@ -94,10 +95,7 @@ public class DctController extends Handler {
     protected SubscriptionController mSubController = SubscriptionController.getInstance();
 
     private SubscriptionManager mSubMgr;
-
-    protected AtomicBoolean[] mIsDataAllowed;
-    protected AtomicBoolean mNeedsDdsSwitch = new AtomicBoolean(false);
-
+    
     protected AtomicBoolean[] mIsDataAllowed;
     protected AtomicBoolean mNeedsDdsSwitch = new AtomicBoolean(false);
 
@@ -597,6 +595,7 @@ public class DctController extends Handler {
         logd("onSubInfoReady mPhoneNum=" + mPhoneNum);
         UiccController uiccController = UiccController.getInstance();
         for (int i = 0; i < mPhoneNum; ++i) {
+            UiccCard card = uiccController.getUiccCard(i);
             int subId = mPhones[i].getSubId();
             logd("onSubInfoReady handle pending requests subId=" + subId);
             if ((card == null) || (card.getCardState() ==
@@ -867,25 +866,6 @@ public class DctController extends Handler {
             pw.decreaseIndent();
             pw.decreaseIndent();
         }
-    }
-
-    protected void setDataAllowedOnPhoneId(int phoneId, boolean dataAllowed) {
-        if (SubscriptionManager.isValidPhoneId(phoneId)) {
-            mIsDataAllowed[phoneId].set(dataAllowed);
-        }
-    }
-
-    public boolean isDataAllowedOnPhoneId(int phoneId) {
-        return SubscriptionManager.isValidPhoneId(phoneId) &&
-                mIsDataAllowed[phoneId].get();
-    }
-
-    public boolean isDdsSwitchNeeded() {
-        return mNeedsDdsSwitch.get();
-    }
-
-    public void resetDdsSwitchNeededFlag() {
-        mNeedsDdsSwitch.set(false);
     }
 
     protected void setDataAllowedOnPhoneId(int phoneId, boolean dataAllowed) {
